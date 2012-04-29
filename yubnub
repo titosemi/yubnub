@@ -10,16 +10,22 @@
 # -----------------------
 
 # getUrlWith string The callback function that handles how to retrieve the URL.
-# Actually just CURL and WGET are implemented.
+# Actually just curl and wget are implemented.
 # 
 # You can easily extended just by adding a custom function called 
 # getUrlWith_Yourtoolname. The function has to return the redirect URL
 # of yubnub for your giving command
-getUrlWith="CURL"
+getUrlWith="curl"
 
 # openWith string The callback function that handles what to do with
 # the returned URL 
 openWith="open"
+
+# checkUrl bool Whenever to checks if the getUrlWith is in the system
+checkUrl=true
+
+# checkWith bool Whenever to checks if the openWith is in the system
+checkOpen=true
 
 # Yubnub parse URL (normally you don't have to touch this setting)
 yubnub_url="http://yubnub.org/parser/parse" 
@@ -33,7 +39,7 @@ params="$@"
 # The returned URL from yubnub
 url=""
 
-ussage()
+usage()
 {
     echo ""
     echo "Usage: \$${name} command [command]"
@@ -65,14 +71,27 @@ ussage()
     exit 1
 }
 
-error_getUrlWith()
+helper_error()
 {
-    local msg=""
+    if [ "$1" = "getUrlWith" ]; then
+        local value=${getUrlWith}
+    elif [ "$1" = "openWith" ]; then
+        local value=${openWith}
+    fi
 
-    if [ "${getUrlWith}" = "" ]; then
-        msg="You must set the variable getUrlWith in the script configuration."
+    echo $value
+}
+
+error_with()
+{
+    
+    local msg=""
+    local value=$(helper_error "$1")   
+
+    if [ "${value}" = "" ]; then
+        msg="You must set the variable $1 in the script configuration."
     else
-        msg="You have set the getUrlWith to ${getUrlWith} but it wasn't found on your system."
+        msg="You have set the $1 to ${value} but it wasn't found on your system."
     fi
 
     echo ""
@@ -82,77 +101,57 @@ error_getUrlWith()
     exit 1
 }
 
-error_getUrlFunction()
+error_withFunction()
 {
+    local value=$(helper_error "$1")
+    
     echo ""
-    echo "The variable getWithWith is set to ${getUrlWith} but there isn't a function implemented to handle it."
+    echo "The variable $1 is set to ${value} but there isn't a function implemented to handle it."
     echo "" 
-    echo "You must write a function called getUrlWith_${getUrlWith} that handles the URL requests."
+    echo "You must write a function called getUrlWith_${value} that handles the URL requests."
     echo ""
-
+                              
     exit 1
 }
 
-error_openWith()
-{
-    local msg=""
-
-    if [ "${openWith}" = "" ]; then
-        msg="You must set the variable openWith in the script configuration."
-    else
-        msg="You have set the openWith to ${openWith} but it wasn't found on your system."
-    fi
-
-    echo ""
-    echo "Error: ${msg}"
-    echo ""
-
-    exit 1 
-}
-
-error_openWithFunction()
-{
-    echo ""
-    echo "The variable openWith is set to ${openWith} but there isn't a function implemented to handle it."
-    echo "" 
-    echo "You must write a function called openWith_${openWith} that handles what to do with the returned URL."
-    echo ""
-
-    exit 1
-} 
-
-# Checks that at least one param is passed, if not so the ussage
+# Checks that at least one param is passed, if not so the usage
 check_params() 
 {    
     if [ "${params}" = "" ]; then
         echo ""
         echo "No command specified"
-        ussage
+        usage
     fi
 } 
 
 # Call the appropiate getURL function
 getUrl()
 {
-    if [ "${getUrlWith}" = "" ] || [ "$(which ${getUrlWith})" = "" ]; then
-        error_getUrlWith
+    if [ "${getUrlWith}" = "" ]; then
+        error_with "getUrlWith"
+    fi
+
+    if [ "${checkUrl}" = true ]; then
+        if [ "$(which ${getUrlWith})" = "" ]; then
+            error_with "getUrlWith"
+        fi
     fi
      
     if [ "$(type getUrlWith_${getUrlWith} 2>&1 | grep 'is a function')" ] ; then
         getUrlWith_${getUrlWith}
     else
-        error_getUrlFunction
+        error_withFunction "getUrlWith"
     fi
 }
 
 # Handle the URL requests with CURL
-getUrlWith_CURL()
+getUrlWith_curl()
 {
     url=$(curl -d "command=${params}" ${yubnub_url}  2>/dev/null | grep -o -E 'href="([^"#]+)"' | cut -d'"' -f2)
 }
 
 # Handle the URL requests with WGET
-getUrlWith_WGET()
+getUrlWith_wget()
 {
     url="$(wget -qO- --max-redirect=0 --server-response --post-data=\"command=${params}\" ${yubnub_url} 2>&1 | grep 'location:' | cut -d ' ' -f4)"
 }
@@ -160,26 +159,36 @@ getUrlWith_WGET()
 # Opens the received URL with the preferred method 
 openUrl()
 {
-    if [ "${openWith}" = "" ] || [ "$(which ${openWith})" = "" ]; then
-        error_openWith
-    fi 
-    
-    if [ "$(which ${openWith})" = "" ]; then
-        error_openWith
-    fi 
+    if [ "${openWith}" = "" ]; then
+        error_with "openWith"
+    fi
+
+    if [ "${checkOpen}" = true ]; then
+        if [ "$(which ${openWith})" = "" ]; then
+            error_with "openWith"
+        fi
+    fi
     
     if [ "$(type openWith_${openWith} 2>&1 | grep 'is a function')" ] ; then
         openWith_${openWith}
     else
-        error_openWithFunction
+        error_withFunction "openWith"
     fi 
 }
 
+# Just outputs the URL
+openWith_console()
+{
+    echo ${url}
+}
+
+# Open the URL with the default program to handle URLs (Mac OsX)
 openWith_open()
 {
     open ${url}
 }
 
+# Open the URL with the w3m console browser
 openWith_w3m()
 {
     w3m ${url}
