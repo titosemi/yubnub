@@ -1,0 +1,191 @@
+#!/bin/bash
+
+# (c) Josemi Liébana <office@josemi-liebana.com> <http://josemi-liebana.com>
+#
+# For the full copyright and license information, please view the License
+# file that was distributed with this source code.
+#
+
+# Configuration variables
+# -----------------------
+
+# getUrlWith string The callback function that handles how to retrieve the URL.
+# Actually just CURL and WGET are implemented.
+# 
+# You can easily extended just by adding a custom function called 
+# getUrlWith_Yourtoolname. The function has to return the redirect URL
+# of yubnub for your giving command
+getUrlWith="CURL"
+
+# openWith string The callback function that handles what to do with
+# the returned URL 
+openWith="open"
+
+# Yubnub parse URL (normally you don't have to touch this setting)
+yubnub_url="http://yubnub.org/parser/parse" 
+
+# Variables configured on runtime
+# -------------------------------
+# The name of the script
+name=$0
+# The parameters passed
+params="$@"
+# The returned URL from yubnub
+url=""
+
+ussage()
+{
+    echo ""
+    echo "Usage: \$${name} command [command]"
+    echo ""
+    echo "Examples:"
+    echo "  ls                          | List all available commands."
+    echo "  ls google                   | List all command that contains \"google\" in the name or in the description."
+    echo "  random 100                  | Pick a random number between 1 and 100."
+    echo "  gim porsche 911             | Do a Google Image search for Porsche 911's."
+    echo "  man random                  | Display help for the \"random\" command." 
+    echo ""
+    echo "Popular Searches:"
+    echo "  Google                      | g"
+    echo "  Google News                 | gnews"
+    echo "  Yahoo!                      | y"
+    echo "  Wikipedia                   | wp"
+    echo "  Technorati                  | tec"
+    echo "  Amazon                      | am"
+    echo "  CNN                         | cnn"
+    echo "  Weather for zip code        | weather"
+    echo "  Ebay                        | eBay"
+    echo "  AllMusic.com                | allmusic"
+    echo "  del.icio.us tag             | deli"
+    echo "  Flickr                      | flk"
+    echo "  ESPN                        | espn"
+    echo "  Yahoo! Stock Quote          | stock"
+    echo "  Dictionary (Answers.com )   | a"
+
+    exit 1
+}
+
+error_getUrlWith()
+{
+    local msg=""
+
+    if [ "${getUrlWith}" = "" ]; then
+        msg="You must set the variable getUrlWith in the script configuration."
+    else
+        msg="You have set the getUrlWith to ${getUrlWith} but it wasn't found on your system."
+    fi
+
+    echo ""
+    echo "Error: ${msg}"
+    echo ""
+
+    exit 1
+}
+
+error_getUrlFunction()
+{
+    echo ""
+    echo "The variable getWithWith is set to ${getUrlWith} but there isn't a function implemented to handle it."
+    echo "" 
+    echo "You must write a function called getUrlWith_${getUrlWith} that handles the URL requests."
+    echo ""
+
+    exit 1
+}
+
+error_openWith()
+{
+    local msg=""
+
+    if [ "${openWith}" = "" ]; then
+        msg="You must set the variable openWith in the script configuration."
+    else
+        msg="You have set the openWith to ${openWith} but it wasn't found on your system."
+    fi
+
+    echo ""
+    echo "Error: ${msg}"
+    echo ""
+
+    exit 1 
+}
+
+error_openWithFunction()
+{
+    echo ""
+    echo "The variable openWith is set to ${openWith} but there isn't a function implemented to handle it."
+    echo "" 
+    echo "You must write a function called openWith_${openWith} that handles what to do with the returned URL."
+    echo ""
+
+    exit 1
+} 
+
+# Checks that at least one param is passed, if not so the ussage
+check_params() 
+{    
+    if [ "${params}" = "" ]; then
+        echo ""
+        echo "No command specified"
+        ussage
+    fi
+} 
+
+# Call the appropiate getURL function
+getUrl()
+{
+    if [ "${getUrlWith}" = "" ] || [ "$(which ${getUrlWith})" = "" ]; then
+        error_getUrlWith
+    fi
+     
+    if [ "$(type getUrlWith_${getUrlWith} 2>&1 | grep 'is a function')" ] ; then
+        getUrlWith_${getUrlWith}
+    else
+        error_getUrlFunction
+    fi
+}
+
+# Handle the URL requests with CURL
+getUrlWith_CURL()
+{
+    url=$(curl -d "command=${params}" ${yubnub_url}  2>/dev/null | grep -o -E 'href="([^"#]+)"' | cut -d'"' -f2)
+}
+
+# Handle the URL requests with WGET
+getUrlWith_WGET()
+{
+    url="$(wget -qO- --max-redirect=0 --server-response --post-data=\"command=${params}\" ${yubnub_url} 2>&1 | grep 'location:' | cut -d ' ' -f4)"
+}
+
+# Opens the received URL with the preferred method 
+openUrl()
+{
+    if [ "${openWith}" = "" ] || [ "$(which ${openWith})" = "" ]; then
+        error_openWith
+    fi 
+    
+    if [ "$(which ${openWith})" = "" ]; then
+        error_openWith
+    fi 
+    
+    if [ "$(type openWith_${openWith} 2>&1 | grep 'is a function')" ] ; then
+        openWith_${openWith}
+    else
+        error_openWithFunction
+    fi 
+}
+
+openWith_open()
+{
+    open ${url}
+}
+
+openWith_w3m()
+{
+    w3m ${url}
+}
+
+check_params
+getUrl
+openUrl
+exit 0
