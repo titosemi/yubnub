@@ -19,13 +19,13 @@ getUrlWith="curl"
 
 # openWith string The callback function that handles what to do with
 # the returned URL 
-openWith="open"
+openWith="remoteOpen"
 
 # checkUrl bool Whenever to checks if the getUrlWith is in the system
 checkUrl=true
 
 # checkWith bool Whenever to checks if the openWith is in the system
-checkOpen=true
+checkOpen=false
 
 # Yubnub parse URL (normally you don't have to touch this setting)
 yubnub_url="http://yubnub.org/parser/parse" 
@@ -192,6 +192,11 @@ openWith_open()
 openWith_w3m()
 {
     w3m "${url}"
+}
+
+openWith_remoteOpen()
+{
+    ssh macbook `echo open "${url}"`
 }
 
 check_params
