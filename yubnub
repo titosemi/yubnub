@@ -179,19 +179,19 @@ openUrl()
 # Just outputs the URL
 openWith_console()
 {
-    echo ${url}
+    echo "${url}"
 }
 
 # Open the URL with the default program to handle URLs (Mac OsX)
 openWith_open()
 {
-    open ${url}
+    open "${url}"
 }
 
 # Open the URL with the w3m console browser
 openWith_w3m()
 {
-    w3m ${url}
+    w3m "${url}"
 }
 
 check_params
