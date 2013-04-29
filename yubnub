@@ -199,6 +199,11 @@ openWith_remoteOpen()
     ssh macbook `echo open "${url}"`
 }
 
+openWith_surf()
+{
+    surf "${url}"
+}
+
 check_params
 getUrl
 openUrl
